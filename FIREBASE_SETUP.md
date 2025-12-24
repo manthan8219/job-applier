@@ -53,13 +53,7 @@ After adding `.env.local`, restart your dev server:
 npm run dev
 ```
 
-## Phone Authentication Additional Setup
 
-For phone authentication to work:
-
-1. **Enable reCAPTCHA**: Firebase will automatically use reCAPTCHA for phone auth
-2. **Billing Account**: Phone authentication requires a Firebase Blaze (pay-as-you-go) plan
-3. **Test Phone Numbers** (Optional): Add test phone numbers in Authentication → Sign-in method → Phone → Test phone numbers
 
 ## Troubleshooting
 

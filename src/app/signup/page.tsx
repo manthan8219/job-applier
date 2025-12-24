@@ -39,7 +39,7 @@ export default function SignupPage() {
         if (user) {
             setSuccess(true);
             setTimeout(() => {
-                router.push('/dashboard');
+                router.push('/onboarding');
             }, 2000);
         } else {
             setError(authError || 'Failed to create account');
@@ -55,7 +55,7 @@ export default function SignupPage() {
         const { user, error: authError } = await signInWithGoogle();
 
         if (user) {
-            router.push('/dashboard');
+            router.push('/onboarding');
         } else {
             setError(authError || 'Failed to sign up with Google');
         }

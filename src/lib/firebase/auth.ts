@@ -3,13 +3,10 @@ import {
     signInWithEmailAndPassword,
     signInWithPopup,
     GoogleAuthProvider,
-    signInWithPhoneNumber,
-    RecaptchaVerifier,
     sendPasswordResetEmail,
     signOut as firebaseSignOut,
     onAuthStateChanged,
     User,
-    ConfirmationResult,
     updateProfile,
     sendEmailVerification,
 } from 'firebase/auth';
@@ -59,48 +56,6 @@ export const signInWithEmail = async (email: string, password: string) => {
 export const signInWithGoogle = async () => {
     try {
         const userCredential = await signInWithPopup(auth, googleProvider);
-        return { user: userCredential.user, error: null };
-    } catch (error: any) {
-        return { user: null, error: error.message };
-    }
-};
-
-/**
- * Set up reCAPTCHA verifier for phone authentication
- */
-export const setupRecaptcha = (containerId: string): RecaptchaVerifier => {
-    return new RecaptchaVerifier(auth, containerId, {
-        size: 'invisible',
-        callback: () => {
-            // reCAPTCHA solved
-        },
-    });
-};
-
-/**
- * Send verification code to phone number
- */
-export const sendPhoneVerification = async (
-    phoneNumber: string,
-    recaptchaVerifier: RecaptchaVerifier
-): Promise<{ confirmationResult: ConfirmationResult | null; error: string | null }> => {
-    try {
-        const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
-        return { confirmationResult, error: null };
-    } catch (error: any) {
-        return { confirmationResult: null, error: error.message };
-    }
-};
-
-/**
- * Verify phone number with OTP code
- */
-export const verifyPhoneCode = async (
-    confirmationResult: ConfirmationResult,
-    code: string
-) => {
-    try {
-        const userCredential = await confirmationResult.confirm(code);
         return { user: userCredential.user, error: null };
     } catch (error: any) {
         return { user: null, error: error.message };
