@@ -1,37 +1,95 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { signInWithEmail, signInWithGoogle, setupRecaptcha, sendPhoneVerification } from '@/lib/firebase/auth';
+import { ForgotPasswordModal } from '@/components/ForgotPasswordModal';
+import { PhoneVerification } from '@/components/PhoneVerification';
+import { ConfirmationResult, RecaptchaVerifier } from 'firebase/auth';
+import Link from 'next/link';
 
 type LoginMethod = 'email' | 'phone';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [loginMethod, setLoginMethod] = useState<LoginMethod>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Email login:', { email, password });
+    setError(null);
+
+    const { user, error: authError } = await signInWithEmail(email, password);
+
+    if (user) {
+      router.push('/dashboard');
+    } else {
+      setError(authError || 'Failed to sign in');
+    }
+
     setIsLoading(false);
   };
 
   const handlePhoneLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Phone login:', { phone });
+    setError(null);
+
+    try {
+      // Setup reCAPTCHA if not already set up
+      if (!recaptchaVerifier) {
+        const verifier = setupRecaptcha('recaptcha-container');
+        setRecaptchaVerifier(verifier);
+
+        const { confirmationResult: result, error: phoneError } = await sendPhoneVerification(phone, verifier);
+
+        if (result) {
+          setConfirmationResult(result);
+        } else {
+          setError(phoneError || 'Failed to send verification code');
+        }
+      } else {
+        const { confirmationResult: result, error: phoneError } = await sendPhoneVerification(phone, recaptchaVerifier);
+
+        if (result) {
+          setConfirmationResult(result);
+        } else {
+          setError(phoneError || 'Failed to send verification code');
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to send verification code');
+    }
+
     setIsLoading(false);
   };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Google SSO login');
+    setError(null);
+
+    const { user, error: authError } = await signInWithGoogle();
+
+    if (user) {
+      router.push('/dashboard');
+    } else {
+      setError(authError || 'Failed to sign in with Google');
+    }
+
     setIsLoading(false);
+  };
+
+  const handlePhoneVerified = () => {
+    setConfirmationResult(null);
+    router.push('/dashboard');
   };
 
   return (
@@ -47,6 +105,9 @@ export default function LoginPage() {
         {/* Grid Pattern */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMwMDAiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PHBhdGggZD0iTTM2IDM0djItaDJWMzRoLTJ6bTAtNGgydjJoLTJ2LTJ6bS0yIDJ2Mmgydi0yaC0yem0wLTJ2Mmgydi0yaC0yem0wLTJ2Mmgydi0yaC0yem0yLTJ2Mmgydi0yaC0yem0wLTJ2Mmgydi0yaC0yem0wLTJ2Mmgydi0yaC0yem0wLTJ2Mmgydi0yaC0yem0wLTJ2Mmgydi0yaC0yem0tMiAydjJoMnYtMmgtMnptMC0ydjJoMnYtMmgtMnptMC0ydjJoMnYtMmgtMnptMC0ydjJoMnYtMmgtMnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30"></div>
       </div>
+
+      {/* reCAPTCHA Container */}
+      <div id="recaptcha-container"></div>
 
       {/* Login Card */}
       <div className="relative z-10 w-full max-w-md">
@@ -70,6 +131,13 @@ export default function LoginPage() {
               Sign in to continue your journey
             </p>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Google SSO Button */}
           <button
@@ -173,9 +241,13 @@ export default function LoginPage() {
                 </div>
 
                 <div className="text-right">
-                  <a href="#" className="text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200 hover:underline">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors duration-200 hover:underline"
+                  >
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
 
                 <button
@@ -257,13 +329,27 @@ export default function LoginPage() {
           <div className="mt-8 text-center">
             <p className="text-gray-600">
               Don't have an account?{' '}
-              <a href="#" className="text-blue-600 font-bold hover:text-blue-700 transition-colors duration-200 hover:underline">
+              <Link href="/signup" className="text-blue-600 font-bold hover:text-blue-700 transition-colors duration-200 hover:underline">
                 Sign up free
-              </a>
+              </Link>
             </p>
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+      />
+
+      {confirmationResult && (
+        <PhoneVerification
+          confirmationResult={confirmationResult}
+          onVerified={handlePhoneVerified}
+          onCancel={() => setConfirmationResult(null)}
+        />
+      )}
 
       <style jsx>{`
         @keyframes blob {
